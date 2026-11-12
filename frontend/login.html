@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TPMotors - Acesso ao Sistema</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <header class="navbar">
+    <a href="index.html" class="brand">
+      TP<span>Motors</span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="index.html">Vitrine de Veículos</a></li>
+      <li><a href="login.html" class="active">Entrar</a></li>
+    </ul>
+  </header>
+
+  <main class="container">
+    <div class="form-card">
+      <div class="tabs">
+        <button id="tab-login-btn" class="tab-btn active" onclick="switchTab('login')">Entrar</button>
+        <button id="tab-registro-btn" class="tab-btn" onclick="switchTab('registro')">Criar Conta</button>
+      </div>
+
+      <div id="alert-box" class="alert"></div>
+
+      <!-- Formulário de Login -->
+      <form id="form-login" onsubmit="handleLogin(event)">
+        <h2 style="margin-bottom: 1rem; font-size: 1.4rem;">Bem-vindo de volta</h2>
+        
+        <div class="form-group">
+          <label class="form-label" for="login-email">E-mail</label>
+          <input type="email" id="login-email" class="form-input" placeholder="seu@email.com" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="login-senha">Senha</label>
+          <input type="password" id="login-senha" class="form-input" placeholder="••••••••" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">
+          Acessar Painel
+        </button>
+
+        <p style="margin-top: 1rem; font-size: 0.85rem; color: var(--text-muted); text-align: center;">
+          Ambiente seguro com autenticação JWT e proteção de taxa por IP.
+        </p>
+      </form>
+
+      <!-- Formulário de Cadastro -->
+      <form id="form-registro" style="display: none;" onsubmit="handleRegistro(event)">
+        <h2 style="margin-bottom: 1rem; font-size: 1.4rem;">Cadastre-se na TPMotors</h2>
+
+        <div class="form-group">
+          <label class="form-label" for="reg-nome">Nome Completo</label>
+          <input type="text" id="reg-nome" class="form-input" placeholder="Ex: Carlos Silva" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="reg-email">E-mail</label>
+          <input type="email" id="reg-email" class="form-input" placeholder="carlos@exemplo.com" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="reg-senha">Senha</label>
+          <input type="password" id="reg-senha" class="form-input" placeholder="Mínimo 6 caracteres" minlength="6" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="reg-telefone">Telefone / WhatsApp</label>
+          <input type="tel" id="reg-telefone" class="form-input" placeholder="(11) 98765-4321">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="reg-documento">CPF / CNPJ</label>
+          <input type="text" id="reg-documento" class="form-input" placeholder="000.000.000-00">
+        </div>
+
+        <button type="submit" class="btn btn-accent" style="width: 100%; margin-top: 1rem;">
+          Concluir Cadastro
+        </button>
+      </form>
+    </div>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script>
+    function showAlert(msg, isSuccess = false) {
+      const box = document.getElementById('alert-box');
+      box.textContent = msg;
+      box.className = 'alert ' + (isSuccess ? 'alert-success' : 'alert-danger');
+      box.style.display = 'block';
+    }
+
+    function switchTab(tab) {
+      const loginForm = document.getElementById('form-login');
+      const regForm = document.getElementById('form-registro');
+      const tabLoginBtn = document.getElementById('tab-login-btn');
+      const tabRegBtn = document.getElementById('tab-registro-btn');
+      const alertBox = document.getElementById('alert-box');
+      alertBox.style.display = 'none';
+
+      if (tab === 'login') {
+        loginForm.style.display = 'block';
+        regForm.style.display = 'none';
+        tabLoginBtn.classList.add('active');
+        tabRegBtn.classList.remove('active');
+      } else {
+        loginForm.style.display = 'none';
+        regForm.style.display = 'block';
+        tabLoginBtn.classList.remove('active');
+        tabRegBtn.classList.add('active');
+      }
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById('login-email').value;
+      const senha = document.getElementById('login-senha').value;
+
+      try {
+        const res = await apiFetch('/auth/login', {
+          method: 'POST',
+          body: JSON.stringify({ email, senha })
+        });
+
+        Auth.setToken(res.token);
+
+        // Decodifica o payload do JWT para inspecionar user e status
+        const decoded = Auth.decodePayload(res.token);
+        const userData = {
+          id: res.id,
+          nome: decoded ? decoded.user : res.nome,
+          email: res.email,
+          role: res.role,
+          status: decoded ? decoded.status : (res.role === 'ADMIN' ? 'admin' : 'user')
+        };
+        Auth.setUserData(userData);
+
+        showAlert('Autenticado com sucesso! Redirecionando...', true);
+
+        setTimeout(() => {
+          if (userData.status === 'admin' || userData.role === 'ADMIN') {
+            window.location.href = 'painel-admin.html';
+          } else {
+            window.location.href = 'painel-usuario.html';
+          }
+        }, 800);
+      } catch (err) {
+        showAlert(err.message || 'Falha ao autenticar.');
+      }
+    }
+
+    async function handleRegistro(e) {
+      e.preventDefault();
+      const payload = {
+        nome: document.getElementById('reg-nome').value,
+        email: document.getElementById('reg-email').value,
+        senha: document.getElementById('reg-senha').value,
+        telefone: document.getElementById('reg-telefone').value,
+        documento: document.getElementById('reg-documento').value,
+        role: 'USER'
+      };
+
+      try {
+        const res = await apiFetch('/auth/registro', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+
+        Auth.setToken(res.token);
+        const decoded = Auth.decodePayload(res.token);
+        const userData = {
+          id: res.id,
+          nome: decoded ? decoded.user : res.nome,
+          email: res.email,
+          role: res.role,
+          status: decoded ? decoded.status : 'user'
+        };
+        Auth.setUserData(userData);
+
+        showAlert('Conta criada com sucesso! Redirecionando...', true);
+        setTimeout(() => {
+          window.location.href = 'painel-usuario.html';
+        }, 800);
+      } catch (err) {
+        showAlert(err.message || 'Falha ao criar conta.');
+      }
+    }
+
+    // Se já estiver logado, redireciona direto para o painel correspondente
+    if (Auth.isAuthenticated()) {
+      if (Auth.isAdmin()) {
+        window.location.href = 'painel-admin.html';
+      } else {
+        window.location.href = 'painel-usuario.html';
+      }
+    }
+  </script>
+</body>
+</html>

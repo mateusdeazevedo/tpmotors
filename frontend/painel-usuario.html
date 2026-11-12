@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TPMotors - Painel do Cliente</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Barra de Navegação -->
+  <header class="navbar">
+    <a href="painel-usuario.html" class="brand">
+      TP<span>Motors</span>
+    </a>
+    <ul class="nav-links">
+      <li><span class="user-badge" id="user-display">Usuário</span></li>
+      <li id="link-admin" style="display: none;"><a href="painel-admin.html">Painel Admin</a></li>
+      <li><button onclick="Auth.logout()" class="btn btn-outline btn-sm">Sair</button></li>
+    </ul>
+  </header>
+
+  <main class="container">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Portal do Cliente</h1>
+        <p class="page-subtitle">Encontre o carro ideal, simule financiamentos com intermediação segura via PagSeguro.</p>
+      </div>
+      <div>
+        <button class="btn btn-primary" onclick="abrirModalAnunciar()">+ Anunciar Meu Carro</button>
+      </div>
+    </div>
+
+    <!-- Abas do Cliente -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchUserTab('vitrine')">Vitrine de Veículos</button>
+      <button class="tab-btn" onclick="switchUserTab('meus-anuncios')">Meus Veículos Anunciados</button>
+      <button class="tab-btn" onclick="switchUserTab('minhas-compras')">Minhas Negociações & Financiamentos</button>
+    </div>
+
+    <!-- Aba 1: Vitrine de Carros (Dashboard de Visualização) -->
+    <section id="tab-vitrine" class="tab-content active">
+      <!-- Barra de Filtros -->
+      <div style="display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap;">
+        <input type="text" id="filtro-busca" class="form-input" style="max-width: 380px;" placeholder="Buscar por marca ou modelo (Ex: Honda, Civic)...">
+        <button class="btn btn-primary" onclick="buscarVeiculos()">Pesquisar</button>
+        <button class="btn btn-outline" onclick="limparFiltro()">Limpar</button>
+      </div>
+
+      <div id="grid-carros" class="car-grid">
+        <p style="color: var(--text-muted);">Carregando catálogo de veículos...</p>
+      </div>
+    </section>
+
+    <!-- Aba 2: Meus Carros Anunciados -->
+    <section id="tab-meus-anuncios" class="tab-content">
+      <div id="grid-meus-carros" class="car-grid">
+        <p style="color: var(--text-muted);">Carregando seus anúncios...</p>
+      </div>
+    </section>
+
+    <!-- Aba 3: Minhas Negociações e PagSeguro -->
+    <section id="tab-minhas-compras" class="tab-content">
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Veículo</th>
+              <th>Modalidade</th>
+              <th>Valor Total</th>
+              <th>Status</th>
+              <th>PagSeguro / Pix</th>
+            </tr>
+          </thead>
+          <tbody id="lista-minhas-compras">
+            <tr>
+              <td colspan="6" style="text-align: center; color: var(--text-muted);">Nenhuma negociação em andamento.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal de Checkout / Financiamento PagSeguro -->
+  <div id="modal-checkout" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="checkout-carro-titulo">Proposta de Compra / Financiamento</h2>
+        <button class="close-btn" onclick="fecharModalCheckout()">&times;</button>
+      </div>
+
+      <div id="checkout-detalhes-veiculo" style="margin-bottom: 1.5rem; padding: 1rem; background: var(--bg-primary); border-radius: var(--radius-sm);">
+        <!-- Carregado via JS -->
+      </div>
+
+      <form id="form-checkout" onsubmit="processarCheckout(event)">
+        <input type="hidden" id="checkout-carro-id">
+        <input type="hidden" id="checkout-carro-preco">
+
+        <div class="form-group">
+          <label class="form-label" for="checkout-tipo">Tipo de Operação</label>
+          <select id="checkout-tipo" class="form-select" onchange="toggleFinanciamento()">
+            <option value="COMPRA_DIRETA">Compra Direta à Vista</option>
+            <option value="FINANCIAMENTO">Financiamento Intermediado</option>
+            <option value="RESERVA">Reserva de Sinal (Sinal de 10%)</option>
+          </select>
+        </div>
+
+        <div id="campos-financiamento" style="display: none;">
+          <div class="form-group">
+            <label class="form-label" for="checkout-entrada">Valor de Entrada (R$)</label>
+            <input type="number" step="0.01" id="checkout-entrada" class="form-input" placeholder="Ex: 20000.00">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="checkout-parcelas">Número de Parcelas</label>
+            <select id="checkout-parcelas" class="form-select">
+              <option value="12">12x</option>
+              <option value="24">24x</option>
+              <option value="36">36x</option>
+              <option value="48" selected>48x</option>
+              <option value="60">60x</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="margin-top: 1.5rem; display: flex; justify-content: flex-end; gap: 0.75rem;">
+          <button type="button" class="btn btn-outline" onclick="fecharModalCheckout()">Voltar</button>
+          <button type="submit" class="btn btn-accent">Gerar Checkout PagSeguro</button>
+        </div>
+      </form>
+
+      <!-- Resultado do Pagamento Mock PagSeguro -->
+      <div id="checkout-resultado" style="display: none; margin-top: 1.5rem;">
+        <hr style="border-color: var(--border); margin-bottom: 1rem;">
+        <h3 style="color: var(--success); margin-bottom: 0.5rem;">🎉 Proposta Iniciada com Sucesso!</h3>
+        <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1rem;">
+          O PagSeguro gerou a chave Pix e o link de pagamento transparente:
+        </p>
+
+        <div style="background: var(--bg-primary); padding: 1rem; border-radius: var(--radius-sm); margin-bottom: 1rem;">
+          <label class="form-label">Copia e Cola Pix (Simulado):</label>
+          <input type="text" id="pix-copia-cola" class="form-input" readonly>
+        </div>
+
+        <a id="link-externo-pagseguro" href="#" target="_blank" class="btn btn-primary" style="width: 100%;">
+          Ir para Checkout PagSeguro Sandbox &rarr;
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Anunciar Carro -->
+  <div id="modal-anunciar" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Anunciar Veículo na Plataforma</h2>
+        <button class="close-btn" onclick="fecharModalAnunciar()">&times;</button>
+      </div>
+
+      <form id="form-anunciar" onsubmit="salvarNovoAnuncio(event)">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <div class="form-group">
+            <label class="form-label" for="anuncio-marca">Marca</label>
+            <input type="text" id="anuncio-marca" class="form-input" placeholder="Ex: Volkswagen" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="anuncio-modelo">Modelo</label>
+            <input type="text" id="anuncio-modelo" class="form-input" placeholder="Ex: Polo Highline" required>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <div class="form-group">
+            <label class="form-label" for="anuncio-ano-fab">Ano Fabricação</label>
+            <input type="number" id="anuncio-ano-fab" class="form-input" value="2021" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="anuncio-ano-mod">Ano Modelo</label>
+            <input type="number" id="anuncio-ano-mod" class="form-input" value="2022" required>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <div class="form-group">
+            <label class="form-label" for="anuncio-preco">Preço (R$)</label>
+            <input type="number" step="0.01" id="anuncio-preco" class="form-input" placeholder="89000.00" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="anuncio-km">Quilometragem</label>
+            <input type="number" id="anuncio-km" class="form-input" placeholder="42000" value="0">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="anuncio-imagem">URL da Foto</label>
+          <input type="url" id="anuncio-imagem" class="form-input" placeholder="https://images.unsplash.com/photo-...">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="anuncio-descricao">Descrição</label>
+          <textarea id="anuncio-descricao" class="form-textarea" rows="2" placeholder="Único dono, revisões na concessionária..."></textarea>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
+          <button type="button" class="btn btn-outline" onclick="fecharModalAnunciar()">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Publicar Anúncio</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script>
+    // Valida autenticação
+    Auth.requireAuth();
+
+    const user = Auth.getUserData();
+    if (user) {
+      document.getElementById('user-display').textContent = `Olá, ${user.nome}`;
+      if (Auth.isAdmin()) {
+        document.getElementById('link-admin').style.display = 'block';
+      }
+    }
+
+    function switchUserTab(aba) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+      if (aba === 'vitrine') {
+        document.querySelectorAll('.tab-btn')[0].classList.add('active');
+        document.getElementById('tab-vitrine').classList.add('active');
+        carregarVitrine();
+      } else if (aba === 'meus-anuncios') {
+        document.querySelectorAll('.tab-btn')[1].classList.add('active');
+        document.getElementById('tab-meus-anuncios').classList.add('active');
+        carregarMeusCarros();
+      } else if (aba === 'minhas-compras') {
+        document.querySelectorAll('.tab-btn')[2].classList.add('active');
+        document.getElementById('tab-minhas-compras').classList.add('active');
+        carregarMinhasCompras();
+      }
+    }
+
+    async function carregarVitrine(busca = '') {
+      try {
+        const url = busca ? `/carros?busca=${encodeURIComponent(busca)}` : '/carros';
+        const carros = await apiFetch(url);
+        const container = document.getElementById('grid-carros');
+
+        if (!carros || carros.length === 0) {
+          container.innerHTML = '<p style="color: var(--text-muted); grid-column: 1/-1;">Nenhum veículo disponível no momento.</p>';
+          return;
+        }
+
+        container.innerHTML = carros.map(c => `
+          <div class="car-card">
+            <div class="car-img-wrapper">
+              <img class="car-img" src="${c.imagemUrl || 'https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=600&q=80'}" alt="${c.marca} ${c.modelo}">
+              <span class="car-badge badge-${c.status}">${c.status}</span>
+            </div>
+            <div class="car-body">
+              <h3 class="car-title">${c.marca} ${c.modelo}</h3>
+              <div class="car-meta">
+                <span class="car-meta-item">📅 ${c.anoFabricacao}/${c.anoModelo}</span>
+                <span class="car-meta-item">🛣️ ${Formatters.km(c.quilometragem)}</span>
+                <span class="car-meta-item">⚙️ ${c.cambio || 'Manual'}</span>
+              </div>
+              <p style="font-size: 0.85rem; color: var(--text-muted);">${c.descricao || 'Veículo periciado e com garantia TPMotors.'}</p>
+              <div class="car-price">${Formatters.moeda(c.preco)}</div>
+              <div class="car-actions">
+                <button class="btn btn-accent" style="width: 100%;" onclick='abrirCheckout(${JSON.stringify(c)})'>
+                  Comprar / Financiar
+                </button>
+              </div>
+            </div>
+          </div>
+        `).join('');
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function carregarMeusCarros() {
+      try {
+        const carros = await apiFetch('/carros/meus-carros');
+        const container = document.getElementById('grid-meus-carros');
+
+        if (!carros || carros.length === 0) {
+          container.innerHTML = '<p style="color: var(--text-muted); grid-column: 1/-1;">Você ainda não anunciou nenhum veículo.</p>';
+          return;
+        }
+
+        container.innerHTML = carros.map(c => `
+          <div class="car-card">
+            <div class="car-img-wrapper">
+              <img class="car-img" src="${c.imagemUrl || 'https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=600&q=80'}" alt="${c.marca} ${c.modelo}">
+              <span class="car-badge badge-${c.status}">${c.status}</span>
+            </div>
+            <div class="car-body">
+              <h3 class="car-title">${c.marca} ${c.modelo}</h3>
+              <div class="car-price">${Formatters.moeda(c.preco)}</div>
+              <div class="car-actions">
+                <button class="btn btn-danger btn-sm" style="width: 100%;" onclick="removerAnuncio(${c.id})">Remover Anúncio</button>
+              </div>
+            </div>
+          </div>
+        `).join('');
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function carregarMinhasCompras() {
+      try {
+        const transacoes = await apiFetch('/transacoes/minhas');
+        const tbody = document.getElementById('lista-minhas-compras');
+
+        if (!transacoes || transacoes.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Nenhuma negociação encontrada.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = transacoes.map(t => `
+          <tr>
+            <td><code>${t.codigoTransacao}</code></td>
+            <td><strong>${t.carro ? t.carro.marca + ' ' + t.carro.modelo : '-'}</strong></td>
+            <td>${t.tipo}</td>
+            <td><strong style="color: var(--accent);">${Formatters.moeda(t.valorTotal)}</strong></td>
+            <td><span class="car-badge badge-${t.status}">${t.status}</span></td>
+            <td>
+              ${t.linkPagamento ? `<a href="${t.linkPagamento}" target="_blank" class="btn btn-outline btn-sm">Abrir PagSeguro</a>` : '-'}
+            </td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function buscarVeiculos() {
+      const termo = document.getElementById('filtro-busca').value;
+      carregarVitrine(termo);
+    }
+
+    function limparFiltro() {
+      document.getElementById('filtro-busca').value = '';
+      carregarVitrine();
+    }
+
+    function abrirCheckout(c) {
+      document.getElementById('checkout-carro-titulo').textContent = `${c.marca} ${c.modelo}`;
+      document.getElementById('checkout-carro-id').value = c.id;
+      document.getElementById('checkout-carro-preco').value = c.preco;
+
+      document.getElementById('checkout-detalhes-veiculo').innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <strong>Ano:</strong> ${c.anoFabricacao}/${c.anoModelo} | 
+            <strong>Câmbio:</strong> ${c.cambio || 'Manual'}
+          </div>
+          <div style="font-size: 1.25rem; font-weight: 800; color: var(--accent);">
+            ${Formatters.moeda(c.preco)}
+          </div>
+        </div>
+      `;
+
+      document.getElementById('checkout-resultado').style.display = 'none';
+      document.getElementById('form-checkout').style.display = 'block';
+      document.getElementById('modal-checkout').style.display = 'grid';
+    }
+
+    function fecharModalCheckout() {
+      document.getElementById('modal-checkout').style.display = 'none';
+    }
+
+    function toggleFinanciamento() {
+      const tipo = document.getElementById('checkout-tipo').value;
+      const campos = document.getElementById('campos-financiamento');
+      campos.style.display = (tipo === 'FINANCIAMENTO') ? 'block' : 'none';
+    }
+
+    async function processarCheckout(e) {
+      e.preventDefault();
+      const carroId = parseInt(document.getElementById('checkout-carro-id').value);
+      const preco = parseFloat(document.getElementById('checkout-carro-preco').value);
+      const tipo = document.getElementById('checkout-tipo').value;
+      const entrada = parseFloat(document.getElementById('checkout-entrada').value) || 0;
+      const parcelas = parseInt(document.getElementById('checkout-parcelas').value) || 1;
+
+      const payload = {
+        carroId,
+        tipo,
+        valorTotal: preco,
+        valorEntrada: entrada,
+        numeroParcelas: parcelas
+      };
+
+      try {
+        const transacao = await apiFetch('/transacoes/checkout', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+
+        // Mostra retorno mock do PagSeguro
+        document.getElementById('form-checkout').style.display = 'none';
+        document.getElementById('checkout-resultado').style.display = 'block';
+        document.getElementById('pix-copia-cola').value = transacao.qrcodePix || 'PIX_CODE_MOCK';
+        document.getElementById('link-externo-pagseguro').href = transacao.linkPagamento || '#';
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    function abrirModalAnunciar() {
+      document.getElementById('form-anunciar').reset();
+      document.getElementById('modal-anunciar').style.display = 'grid';
+    }
+
+    function fecharModalAnunciar() {
+      document.getElementById('modal-anunciar').style.display = 'none';
+    }
+
+    async function salvarNovoAnuncio(e) {
+      e.preventDefault();
+      const payload = {
+        marca: document.getElementById('anuncio-marca').value,
+        modelo: document.getElementById('anuncio-modelo').value,
+        anoFabricacao: parseInt(document.getElementById('anuncio-ano-fab').value),
+        anoModelo: parseInt(document.getElementById('anuncio-ano-mod').value),
+        preco: parseFloat(document.getElementById('anuncio-preco').value),
+        quilometragem: parseInt(document.getElementById('anuncio-km').value) || 0,
+        imagemUrl: document.getElementById('anuncio-imagem').value,
+        descricao: document.getElementById('anuncio-descricao').value,
+        status: 'DISPONIVEL'
+      };
+
+      try {
+        await apiFetch('/carros', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+        fecharModalAnunciar();
+        alert('Veículo anunciado com sucesso!');
+        carregarMeusCarros();
+        carregarVitrine();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function removerAnuncio(id) {
+      if (!confirm('Deseja retirar este anúncio?')) return;
+      try {
+        await apiFetch(`/carros/${id}`, { method: 'DELETE' });
+        carregarMeusCarros();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    // Carrega a vitrine inicial
+    carregarVitrine();
+  </script>
+</body>
+</html>

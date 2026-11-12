@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TPMotors - Painel Administrativo</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Barra de Navegação -->
+  <header class="navbar">
+    <a href="painel-admin.html" class="brand">
+      TP<span>Motors</span> <span style="font-size: 0.8rem; background: var(--danger); padding: 2px 6px; border-radius: 4px; margin-left: 6px; color: #fff;">ADMIN</span>
+    </a>
+    <ul class="nav-links">
+      <li><span class="user-badge" id="admin-user-display">Admin</span></li>
+      <li><a href="painel-usuario.html">Ver Visão do Usuário</a></li>
+      <li><button onclick="Auth.logout()" class="btn btn-outline btn-sm">Sair</button></li>
+    </ul>
+  </header>
+
+  <main class="container">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Painel de Controle Geral</h1>
+        <p class="page-subtitle">Gerencie o catálogo de veículos, usuários da plataforma e transações PagSeguro.</p>
+      </div>
+      <div>
+        <button class="btn btn-primary" onclick="abrirModalCarro()">+ Novo Veículo</button>
+      </div>
+    </div>
+
+    <!-- Indicadores Principais (KPIs) -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <span class="kpi-label">Veículos Cadastrados</span>
+        <span class="kpi-value" id="kpi-carros">0</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Disponíveis p/ Venda</span>
+        <span class="kpi-value" id="kpi-disponiveis" style="color: var(--success);">0</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Total de Transações</span>
+        <span class="kpi-value" id="kpi-transacoes">0</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Volume Negociado</span>
+        <span class="kpi-value" id="kpi-volume" style="color: var(--accent);">R$ 0,00</span>
+      </div>
+    </div>
+
+    <!-- Abas de Gestão -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchAdminTab('veiculos')">Veículos Cadastrados</button>
+      <button class="tab-btn" onclick="switchAdminTab('transacoes')">Transações & PagSeguro</button>
+      <button class="tab-btn" onclick="switchAdminTab('usuarios')">Usuários da Plataforma</button>
+    </div>
+
+    <!-- Alertas -->
+    <div id="admin-alert" class="alert"></div>
+
+    <!-- Aba 1: Tabela de Veículos -->
+    <section id="tab-veiculos" class="tab-content active">
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Veículo</th>
+              <th>Ano</th>
+              <th>Preço</th>
+              <th>KM</th>
+              <th>Status</th>
+              <th>Proprietário</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="lista-veiculos-admin">
+            <tr>
+              <td colspan="8" style="text-align: center; color: var(--text-muted);">Carregando veículos...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Aba 2: Transações e PagSeguro -->
+    <section id="tab-transacoes" class="tab-content">
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Veículo</th>
+              <th>Comprador</th>
+              <th>Valor Total</th>
+              <th>Status PagSeguro</th>
+              <th>Ref. Gateway</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="lista-transacoes-admin">
+            <tr>
+              <td colspan="7" style="text-align: center; color: var(--text-muted);">Carregando transações...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Aba 3: Gestão de Usuários -->
+    <section id="tab-usuarios" class="tab-content">
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nome</th>
+              <th>E-mail</th>
+              <th>Telefone</th>
+              <th>Perfil</th>
+              <th>Status</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="lista-usuarios-admin">
+            <tr>
+              <td colspan="7" style="text-align: center; color: var(--text-muted);">Carregando usuários...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal de Criação / Edição de Carro -->
+  <div id="modal-carro" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="modal-titulo">Novo Veículo</h2>
+        <button class="close-btn" onclick="fecharModalCarro()">&times;</button>
+      </div>
+
+      <form id="form-carro" onsubmit="salvarCarro(event)">
+        <input type="hidden" id="carro-id">
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <div class="form-group">
+            <label class="form-label" for="carro-marca">Marca</label>
+            <input type="text" id="carro-marca" class="form-input" placeholder="Ex: Toyota" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="carro-modelo">Modelo</label>
+            <input type="text" id="carro-modelo" class="form-input" placeholder="Ex: Corolla XEi" required>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <div class="form-group">
+            <label class="form-label" for="carro-ano-fab">Ano Fabricação</label>
+            <input type="number" id="carro-ano-fab" class="form-input" value="2022" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="carro-ano-mod">Ano Modelo</label>
+            <input type="number" id="carro-ano-mod" class="form-input" value="2023" required>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <div class="form-group">
+            <label class="form-label" for="carro-preco">Preço (R$)</label>
+            <input type="number" id="carro-preco" step="0.01" class="form-input" placeholder="125000.00" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="carro-km">Quilometragem</label>
+            <input type="number" id="carro-km" class="form-input" placeholder="35000" value="0">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+          <div class="form-group">
+            <label class="form-label" for="carro-cambio">Câmbio</label>
+            <select id="carro-cambio" class="form-select">
+              <option value="Automático">Automático</option>
+              <option value="Manual">Manual</option>
+              <option value="CVT">CVT</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="carro-combustivel">Combustível</label>
+            <select id="carro-combustivel" class="form-select">
+              <option value="Flex">Flex</option>
+              <option value="Gasolina">Gasolina</option>
+              <option value="Híbrido">Híbrido</option>
+              <option value="Elétrico">Elétrico</option>
+              <option value="Diesel">Diesel</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="carro-status">Status</label>
+            <select id="carro-status" class="form-select">
+              <option value="DISPONIVEL">DISPONÍVEL</option>
+              <option value="EM_NEGOCIACAO">EM NEGOCIAÇÃO</option>
+              <option value="VENDIDO">VENDIDO</option>
+              <option value="INATIVO">INATIVO</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="carro-imagem">URL da Imagem</label>
+          <input type="url" id="carro-imagem" class="form-input" placeholder="https://exemplo.com/carro.jpg">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="carro-descricao">Descrição do Veículo</label>
+          <textarea id="carro-descricao" class="form-textarea" rows="3" placeholder="Detalhes, opcionais e estado de conservação..."></textarea>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
+          <button type="button" class="btn btn-outline" onclick="fecharModalCarro()">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar Veículo</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script>
+    // Valida autenticação como ADMIN
+    Auth.requireAuth('admin');
+
+    const user = Auth.getUserData();
+    if (user) {
+      document.getElementById('admin-user-display').textContent = `Admin: ${user.nome}`;
+    }
+
+    function switchAdminTab(aba) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+      if (aba === 'veiculos') {
+        document.querySelectorAll('.tab-btn')[0].classList.add('active');
+        document.getElementById('tab-veiculos').classList.add('active');
+        carregarCarrosAdmin();
+      } else if (aba === 'transacoes') {
+        document.querySelectorAll('.tab-btn')[1].classList.add('active');
+        document.getElementById('tab-transacoes').classList.add('active');
+        carregarTransacoesAdmin();
+      } else if (aba === 'usuarios') {
+        document.querySelectorAll('.tab-btn')[2].classList.add('active');
+        document.getElementById('tab-usuarios').classList.add('active');
+        carregarUsuariosAdmin();
+      }
+    }
+
+    async function carregarCarrosAdmin() {
+      try {
+        const carros = await apiFetch('/carros/todos');
+        const tbody = document.getElementById('lista-veiculos-admin');
+
+        // Atualiza KPIs
+        document.getElementById('kpi-carros').textContent = carros.length;
+        const disp = carros.filter(c => c.status === 'DISPONIVEL').length;
+        document.getElementById('kpi-disponiveis').textContent = disp;
+
+        if (carros.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">Nenhum veículo cadastrado.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = carros.map(c => `
+          <tr>
+            <td>#${c.id}</td>
+            <td><strong>${c.marca} ${c.modelo}</strong></td>
+            <td>${c.anoFabricacao}/${c.anoModelo}</td>
+            <td><strong style="color: var(--accent);">${Formatters.moeda(c.preco)}</strong></td>
+            <td>${Formatters.km(c.quilometragem)}</td>
+            <td><span class="car-badge badge-${c.status}">${c.status}</span></td>
+            <td>${c.proprietarioNome || 'Sistema'}</td>
+            <td>
+              <div style="display: flex; gap: 0.4rem;">
+                <button class="btn btn-outline btn-sm" onclick='editarCarro(${JSON.stringify(c)})'>Editar</button>
+                <button class="btn btn-danger btn-sm" onclick="removerCarro(${c.id})">Excluir</button>
+              </div>
+            </td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function carregarTransacoesAdmin() {
+      try {
+        const transacoes = await apiFetch('/transacoes/minhas');
+        const tbody = document.getElementById('lista-transacoes-admin');
+
+        document.getElementById('kpi-transacoes').textContent = transacoes.length;
+        const volume = transacoes.reduce((acc, t) => acc + (t.valorTotal || 0), 0);
+        document.getElementById('kpi-volume').textContent = Formatters.moeda(volume);
+
+        if (transacoes.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Nenhuma transação registrada.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = transacoes.map(t => `
+          <tr>
+            <td><code>${t.codigoTransacao}</code></td>
+            <td>${t.carro ? t.carro.marca + ' ' + t.carro.modelo : 'N/A'}</td>
+            <td>${t.comprador ? t.comprador.nome : 'N/A'}</td>
+            <td><strong>${Formatters.moeda(t.valorTotal)}</strong></td>
+            <td><span class="car-badge badge-${t.status}">${t.status}</span></td>
+            <td><small>${t.idTransacaoPagSeguro || 'Pendente'}</small></td>
+            <td>
+              <div style="display: flex; gap: 0.3rem;">
+                <button class="btn btn-primary btn-sm" onclick="simularStatusPagSeguro('${t.idTransacaoPagSeguro}', 'APROVADA')">Aprovar Pagamento</button>
+                <button class="btn btn-danger btn-sm" onclick="simularStatusPagSeguro('${t.idTransacaoPagSeguro}', 'CANCELADA')">Cancelar</button>
+              </div>
+            </td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function carregarUsuariosAdmin() {
+      try {
+        const usuarios = await apiFetch('/usuarios');
+        const tbody = document.getElementById('lista-usuarios-admin');
+
+        tbody.innerHTML = usuarios.map(u => `
+          <tr>
+            <td>#${u.id}</td>
+            <td><strong>${u.nome}</strong></td>
+            <td>${u.email}</td>
+            <td>${u.telefone || '-'}</td>
+            <td><span class="user-badge">${u.role}</span></td>
+            <td>${u.ativo ? '<span style="color: var(--success);">Ativo</span>' : '<span style="color: var(--danger);">Inativo</span>'}</td>
+            <td>
+              <button class="btn btn-outline btn-sm" onclick="alternarStatusUsuario(${u.id}, ${!u.ativo})">
+                ${u.ativo ? 'Desativar' : 'Ativar'}
+              </button>
+            </td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function simularStatusPagSeguro(idPagSeguro, novoStatus) {
+      if (!idPagSeguro) {
+        alert('ID PagSeguro não gerado para esta transação.');
+        return;
+      }
+      try {
+        await apiFetch(`/transacoes/${idPagSeguro}/status?status=${novoStatus}`, {
+          method: 'PATCH'
+        });
+        carregarTransacoesAdmin();
+        carregarCarrosAdmin();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function alternarStatusUsuario(id, novoStatus) {
+      try {
+        await apiFetch(`/usuarios/${id}/status?ativo=${novoStatus}`, {
+          method: 'PATCH'
+        });
+        carregarUsuariosAdmin();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    function abrirModalCarro() {
+      document.getElementById('modal-titulo').textContent = 'Novo Veículo';
+      document.getElementById('form-carro').reset();
+      document.getElementById('carro-id').value = '';
+      document.getElementById('modal-carro').style.display = 'grid';
+    }
+
+    function fecharModalCarro() {
+      document.getElementById('modal-carro').style.display = 'none';
+    }
+
+    function editarCarro(c) {
+      document.getElementById('modal-titulo').textContent = `Editar ${c.marca} ${c.modelo}`;
+      document.getElementById('carro-id').value = c.id;
+      document.getElementById('carro-marca').value = c.marca;
+      document.getElementById('carro-modelo').value = c.modelo;
+      document.getElementById('carro-ano-fab').value = c.anoFabricacao;
+      document.getElementById('carro-ano-mod').value = c.anoModelo;
+      document.getElementById('carro-preco').value = c.preco;
+      document.getElementById('carro-km').value = c.quilometragem || 0;
+      document.getElementById('carro-cambio').value = c.cambio || 'Automático';
+      document.getElementById('carro-combustivel').value = c.combustivel || 'Flex';
+      document.getElementById('carro-status').value = c.status;
+      document.getElementById('carro-imagem').value = c.imagemUrl || '';
+      document.getElementById('carro-descricao').value = c.descricao || '';
+      document.getElementById('modal-carro').style.display = 'grid';
+    }
+
+    async function salvarCarro(e) {
+      e.preventDefault();
+      const id = document.getElementById('carro-id').value;
+
+      const payload = {
+        marca: document.getElementById('carro-marca').value,
+        modelo: document.getElementById('carro-modelo').value,
+        anoFabricacao: parseInt(document.getElementById('carro-ano-fab').value),
+        anoModelo: parseInt(document.getElementById('carro-ano-mod').value),
+        preco: parseFloat(document.getElementById('carro-preco').value),
+        quilometragem: parseInt(document.getElementById('carro-km').value) || 0,
+        cambio: document.getElementById('carro-cambio').value,
+        combustivel: document.getElementById('carro-combustivel').value,
+        status: document.getElementById('carro-status').value,
+        imagemUrl: document.getElementById('carro-imagem').value,
+        descricao: document.getElementById('carro-descricao').value
+      };
+
+      try {
+        if (id) {
+          await apiFetch(`/carros/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(payload)
+          });
+        } else {
+          await apiFetch('/carros', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+          });
+        }
+        fecharModalCarro();
+        carregarCarrosAdmin();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function removerCarro(id) {
+      if (!confirm('Deseja realmente excluir este anúncio de veículo?')) return;
+      try {
+        await apiFetch(`/carros/${id}`, { method: 'DELETE' });
+        carregarCarrosAdmin();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    // Inicialização
+    carregarCarrosAdmin();
+    carregarTransacoesAdmin();
+  </script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+# Diretório de compilação do Maven (Spring Boot)
+target/
+!.mvn/wrapper/maven-wrapper.jar
+log/
+logs/
+
+# Arquivos de configuração da sua máquina local
+.vscode/
+
+# Arquivos temporários do Windows
+Thumbs.db
+Desktop.ini
+
+# Arquivos com chaves/senhas (caso precisem separar depois)
+.env

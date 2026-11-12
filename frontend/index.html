@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TPMotors - Plataforma de Venda e Financiamento de Veículos</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .hero {
+      padding: 4rem 1rem;
+      text-align: center;
+      background: radial-gradient(circle at 50% 20%, rgba(59, 130, 246, 0.15), transparent 70%);
+      border-bottom: 1px solid var(--border);
+    }
+    .hero h1 {
+      font-size: 2.75rem;
+      font-weight: 800;
+      margin-bottom: 1rem;
+      letter-spacing: -1px;
+    }
+    .hero p {
+      font-size: 1.15rem;
+      color: var(--text-muted);
+      max-width: 680px;
+      margin: 0 auto 2rem;
+    }
+    .hero-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Barra de Navegação -->
+  <header class="navbar">
+    <a href="index.html" class="brand">
+      TP<span>Motors</span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="#vitrine">Carros Disponíveis</a></li>
+      <li id="nav-painel-link" style="display: none;"><a href="painel-usuario.html">Meu Painel</a></li>
+      <li id="nav-login-link"><a href="login.html" class="btn btn-primary btn-sm">Entrar / Cadastrar</a></li>
+    </ul>
+  </header>
+
+  <!-- Seção Hero -->
+  <section class="hero">
+    <h1>Compre, Venda e Financie Veículos com Segurança</h1>
+    <p>
+      A plataforma definitiva para intermediação automotiva com pagamentos seguros e checkout integrado via PagSeguro.
+    </p>
+    <div class="hero-buttons">
+      <a href="#vitrine" class="btn btn-primary">Explorar Catálogo</a>
+      <a href="login.html" class="btn btn-outline">Anunciar Meu Carro</a>
+    </div>
+  </section>
+
+  <!-- Seção Vitrine de Veículos -->
+  <main class="container" id="vitrine">
+    <div class="page-header">
+      <div>
+        <h2 class="page-title">Veículos Disponíveis para Compra e Financiamento</h2>
+        <p class="page-subtitle">Veículos selecionados, inspecionados e com garantia de procedência.</p>
+      </div>
+    </div>
+
+    <div id="grid-vitrine-publica" class="car-grid">
+      <p style="color: var(--text-muted);">Carregando catálogo...</p>
+    </div>
+  </main>
+
+  <footer style="margin-top: auto; padding: 2rem; border-top: 1px solid var(--border); text-align: center; color: var(--text-muted); font-size: 0.85rem;">
+    &copy; 2026 TPMotors Intermediações Automotivas Ltda. Todos os direitos reservados.
+  </footer>
+
+  <script src="js/api.js"></script>
+  <script>
+    if (Auth.isAuthenticated()) {
+      document.getElementById('nav-painel-link').style.display = 'block';
+      const loginBtn = document.getElementById('nav-login-link');
+      loginBtn.innerHTML = '<button onclick="Auth.logout()" class="btn btn-outline btn-sm">Sair</button>';
+    }
+
+    async function carregarCatalogo() {
+      try {
+        const carros = await apiFetch('/carros');
+        const container = document.getElementById('grid-vitrine-publica');
+
+        if (!carros || carros.length === 0) {
+          container.innerHTML = '<p style="color: var(--text-muted); grid-column: 1/-1;">Nenhum veículo disponível no momento.</p>';
+          return;
+        }
+
+        container.innerHTML = carros.map(c => `
+          <div class="car-card">
+            <div class="car-img-wrapper">
+              <img class="car-img" src="${c.imagemUrl || 'https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=600&q=80'}" alt="${c.marca} ${c.modelo}">
+              <span class="car-badge badge-${c.status}">${c.status}</span>
+            </div>
+            <div class="car-body">
+              <h3 class="car-title">${c.marca} ${c.modelo}</h3>
+              <div class="car-meta">
+                <span class="car-meta-item">📅 ${c.anoFabricacao}/${c.anoModelo}</span>
+                <span class="car-meta-item">🛣️ ${Formatters.km(c.quilometragem)}</span>
+                <span class="car-meta-item">⚙️ ${c.cambio || 'Manual'}</span>
+              </div>
+              <p style="font-size: 0.85rem; color: var(--text-muted);">${c.descricao || 'Veículo periciado e revisado com procedência garantida.'}</p>
+              <div class="car-price">${Formatters.moeda(c.preco)}</div>
+              <div class="car-actions">
+                <a href="login.html" class="btn btn-accent" style="width: 100%;">
+                  Ver Opções de Financiamento
+                </a>
+              </div>
+            </div>
+          </div>
+        `).join('');
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    carregarCatalogo();
+  </script>
+</body>
+</html>
